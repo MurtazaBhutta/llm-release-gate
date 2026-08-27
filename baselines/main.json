@@ -1,0 +1,12 @@
+{
+  "metrics": {
+    "extractor": "fixture:good",
+    "n_cases": 13,
+    "structural_failures": 0,
+    "unsafe_posts": 0,
+    "over_escalations": 0,
+    "critical_field_accuracy": 1.0,
+    "decision_accuracy": 1.0,
+    "reason_validity": 1.0
+  }
+}
