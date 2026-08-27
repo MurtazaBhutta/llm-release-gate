@@ -1,0 +1,10 @@
+{
+  "supplier_name": "Northgate Electrical Supplies",
+  "invoice_number": "",
+  "total_amount": "0.00",
+  "currency": "",
+  "job_reference": "",
+  "decision": "ESCALATE",
+  "escalation_reason": "NOT_AN_INVOICE",
+  "confidence": 0.93
+}

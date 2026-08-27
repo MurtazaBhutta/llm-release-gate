@@ -1,0 +1,10 @@
+{
+  "supplier_name": "Halden Plant Hire",
+  "invoice_number": "HPH-8015",
+  "total_amount": "4200.00",
+  "currency": "EUR",
+  "job_reference": "J-91002",
+  "decision": "ESCALATE",
+  "escalation_reason": "CURRENCY_MISMATCH",
+  "confidence": 0.83
+}

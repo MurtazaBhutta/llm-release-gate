@@ -1,0 +1,10 @@
+{
+  "supplier_name": "Pellow Scaffolding Ltd",
+  "invoice_number": "PSL-118",
+  "total_amount": "2150.00",
+  "currency": "GBP",
+  "job_reference": "J-88214",
+  "decision": "ESCALATE",
+  "escalation_reason": "SUPPLIER_UNKNOWN",
+  "confidence": 0.86
+}

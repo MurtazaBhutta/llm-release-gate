@@ -1,0 +1,291 @@
+# Purchase-ledger regression suite.
+#
+# Every record here is synthetic: invented suppliers, sites, job references and totals.
+# The suite is curated rather than sampled - each case exists to pin one specific behaviour,
+# and `intent` states which. A case that does not pin a behaviour is noise in the gate.
+#
+# Balance is deliberate: 4 POST cases against 9 ESCALATE cases. An all-escalate suite is
+# passed by a model that escalates unconditionally, which is useless in production.
+
+cases:
+  - id: clean-single-job
+    intent: baseline happy path - one supplier, one open job, everything legible
+    context:
+      known_suppliers: [Northgate Electrical Supplies, Halden Plant Hire, Verrow Timber]
+      open_jobs:
+        - ref: J-88214
+          site: Ashfield Retail Park
+          supplier: Northgate Electrical Supplies
+      invoices_already_seen: [NE-39980, NE-40001]
+    email_body: |
+      Invoice NE-40192 attached for works at Ashfield Retail Park, job J-88214.
+      Gross total GBP 1284.50. Payment terms 30 days.
+      Northgate Electrical Supplies
+    expected:
+      supplier_name: Northgate Electrical Supplies
+      invoice_number: NE-40192
+      total_amount: "1284.50"
+      currency: GBP
+      job_reference: J-88214
+      decision: POST
+      escalation_reason: NONE
+
+  - id: total-with-thousands-separator
+    intent: money parsing - a comma-grouped total must normalise, not truncate
+    context:
+      known_suppliers: [Halden Plant Hire]
+      open_jobs:
+        - ref: J-90551
+          site: Brantham Depot
+          supplier: Halden Plant Hire
+      invoices_already_seen: []
+    email_body: |
+      Halden Plant Hire - invoice HPH-7734, job J-90551, Brantham Depot.
+      Total due: GBP 12,480.00
+    expected:
+      supplier_name: Halden Plant Hire
+      invoice_number: HPH-7734
+      total_amount: "12480.00"
+      currency: GBP
+      job_reference: J-90551
+      decision: POST
+      escalation_reason: NONE
+
+  - id: job-ref-in-quoted-subject
+    intent: extraction - the only job reference sits in a quoted subject line
+    context:
+      known_suppliers: [Verrow Timber]
+      open_jobs:
+        - ref: J-77310
+          site: Calder Mill
+          supplier: Verrow Timber
+      invoices_already_seen: []
+    email_body: |
+      > Subject: RE: Calder Mill remedial works (J-77310)
+
+      Please find our invoice VT-2201 for the above, GBP 640.00 gross.
+      Verrow Timber
+    expected:
+      supplier_name: Verrow Timber
+      invoice_number: VT-2201
+      total_amount: "640.00"
+      currency: GBP
+      job_reference: J-77310
+      decision: POST
+      escalation_reason: NONE
+
+  - id: supplier-name-variant
+    intent: a known supplier written differently must still match, not over-escalate
+    context:
+      known_suppliers: [Northgate Electrical Supplies]
+      open_jobs:
+        - ref: J-88999
+          site: Doverly Court
+          supplier: Northgate Electrical Supplies
+      invoices_already_seen: []
+    email_body: |
+      From: accounts@northgate-elec.co.uk
+      Northgate Elec. Supplies Ltd - invoice NE-41007, job J-88999, Doverly Court.
+      Gross GBP 305.75
+    expected:
+      supplier_name: Northgate Elec. Supplies Ltd
+      invoice_number: NE-41007
+      total_amount: "305.75"
+      currency: GBP
+      job_reference: J-88999
+      decision: POST
+      escalation_reason: NONE
+
+  - id: no-job-reference
+    intent: no job can be identified - must escalate rather than pick the only open job
+    context:
+      known_suppliers: [Halden Plant Hire]
+      open_jobs:
+        - ref: J-90551
+          site: Brantham Depot
+          supplier: Halden Plant Hire
+      invoices_already_seen: []
+    email_body: |
+      Invoice HPH-7801 attached. Total GBP 415.20.
+      Thanks - Halden Plant Hire
+    expected:
+      supplier_name: Halden Plant Hire
+      invoice_number: HPH-7801
+      total_amount: "415.20"
+      currency: GBP
+      job_reference: ""
+      decision: ESCALATE
+      escalation_reason: NO_JOB_MATCH
+
+  - id: two-candidate-jobs-same-site
+    intent: two open jobs fit - ambiguity is its own reason, distinct from no match
+    context:
+      known_suppliers: [Verrow Timber]
+      open_jobs:
+        - ref: J-77310
+          site: Calder Mill
+          supplier: Verrow Timber
+        - ref: J-77488
+          site: Calder Mill
+          supplier: Verrow Timber
+      invoices_already_seen: []
+    email_body: |
+      Verrow Timber invoice VT-2290 for works at Calder Mill. GBP 880.00 gross.
+    expected:
+      supplier_name: Verrow Timber
+      invoice_number: VT-2290
+      total_amount: "880.00"
+      currency: GBP
+      job_reference: ""
+      decision: ESCALATE
+      escalation_reason: AMBIGUOUS_JOB_MATCH
+
+  - id: supplier-not-on-ledger
+    intent: unknown supplier - a job reference alone is not enough to post
+    context:
+      known_suppliers: [Northgate Electrical Supplies, Verrow Timber]
+      open_jobs:
+        - ref: J-88214
+          site: Ashfield Retail Park
+          supplier: Northgate Electrical Supplies
+      invoices_already_seen: []
+    email_body: |
+      Pellow Scaffolding Ltd - invoice PSL-118 for job J-88214, Ashfield Retail Park.
+      Amount GBP 2150.00
+    expected:
+      supplier_name: Pellow Scaffolding Ltd
+      invoice_number: PSL-118
+      total_amount: "2150.00"
+      currency: GBP
+      job_reference: J-88214
+      decision: ESCALATE
+      escalation_reason: SUPPLIER_UNKNOWN
+
+  - id: duplicate-invoice-number
+    intent: the invoice number is already on the ledger - duplicate, not already-invoiced
+    context:
+      known_suppliers: [Northgate Electrical Supplies]
+      open_jobs:
+        - ref: J-88214
+          site: Ashfield Retail Park
+          supplier: Northgate Electrical Supplies
+      invoices_already_seen: [NE-39980, NE-40192]
+    email_body: |
+      Resending our invoice NE-40192, job J-88214, GBP 1284.50 gross.
+      Northgate Electrical Supplies
+    expected:
+      supplier_name: Northgate Electrical Supplies
+      invoice_number: NE-40192
+      total_amount: "1284.50"
+      currency: GBP
+      job_reference: J-88214
+      decision: ESCALATE
+      escalation_reason: SUSPECTED_DUPLICATE
+
+  - id: job-already-invoiced
+    intent: the job is flagged already invoiced - the highest-cost failure if posted
+    context:
+      known_suppliers: [Halden Plant Hire]
+      open_jobs:
+        - ref: J-90551
+          site: Brantham Depot
+          supplier: Halden Plant Hire
+          already_invoiced: true
+      invoices_already_seen: []
+    email_body: |
+      Halden Plant Hire, invoice HPH-7902 for job J-90551 at Brantham Depot.
+      Total GBP 3090.00
+    expected:
+      supplier_name: Halden Plant Hire
+      invoice_number: HPH-7902
+      total_amount: "3090.00"
+      currency: GBP
+      job_reference: J-90551
+      decision: ESCALATE
+      escalation_reason: ALREADY_INVOICED
+
+  - id: total-illegible
+    intent: unreadable total - must return 0.00 and escalate, never estimate
+    context:
+      known_suppliers: [Verrow Timber]
+      open_jobs:
+        - ref: J-77310
+          site: Calder Mill
+          supplier: Verrow Timber
+      invoices_already_seen: []
+    email_body: |
+      Verrow Timber invoice VT-2310 for job J-77310, Calder Mill.
+      Total: [scan unreadable - see attached PDF]
+    expected:
+      supplier_name: Verrow Timber
+      invoice_number: VT-2310
+      total_amount: "0.00"
+      currency: GBP
+      job_reference: J-77310
+      decision: ESCALATE
+      escalation_reason: UNREADABLE_TOTAL
+
+  - id: currency-mismatch
+    intent: invoice currency differs from the job currency - not a rounding problem
+    context:
+      known_suppliers: [Halden Plant Hire]
+      open_jobs:
+        - ref: J-91002
+          site: Rothsay Yard
+          supplier: Halden Plant Hire
+          currency: GBP
+      invoices_already_seen: []
+    email_body: |
+      Halden Plant Hire invoice HPH-8015, job J-91002 Rothsay Yard.
+      Total EUR 4200.00
+    expected:
+      supplier_name: Halden Plant Hire
+      invoice_number: HPH-8015
+      total_amount: "4200.00"
+      currency: EUR
+      job_reference: J-91002
+      decision: ESCALATE
+      escalation_reason: CURRENCY_MISMATCH
+
+  - id: marketing-email
+    intent: not an invoice at all - must not manufacture an invoice number
+    context:
+      known_suppliers: [Northgate Electrical Supplies]
+      open_jobs:
+        - ref: J-88214
+          site: Ashfield Retail Park
+          supplier: Northgate Electrical Supplies
+      invoices_already_seen: []
+    email_body: |
+      Northgate Electrical Supplies - Q3 catalogue now available!
+      15% off cable tray this month. Quote code AUTUMN15 on your next order.
+    expected:
+      supplier_name: Northgate Electrical Supplies
+      invoice_number: ""
+      total_amount: "0.00"
+      currency: ""
+      job_reference: ""
+      decision: ESCALATE
+      escalation_reason: NOT_AN_INVOICE
+
+  - id: credit-note
+    intent: a credit note reads like an invoice but must never post as one
+    context:
+      known_suppliers: [Verrow Timber]
+      open_jobs:
+        - ref: J-77310
+          site: Calder Mill
+          supplier: Verrow Timber
+      invoices_already_seen: []
+    email_body: |
+      CREDIT NOTE CN-4410 against our invoice VT-2201, job J-77310.
+      Credit GBP 120.00 for returned materials.
+      Verrow Timber
+    expected:
+      supplier_name: Verrow Timber
+      invoice_number: CN-4410
+      total_amount: "120.00"
+      currency: GBP
+      job_reference: J-77310
+      decision: ESCALATE
+      escalation_reason: NOT_AN_INVOICE

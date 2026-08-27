@@ -1,0 +1,10 @@
+{
+  "supplier_name": "Halden Plant Hire",
+  "invoice_number": "HPH-7902",
+  "total_amount": "3090.00",
+  "currency": "GBP",
+  "job_reference": "J-90551",
+  "decision": "ESCALATE",
+  "escalation_reason": "ALREADY_INVOICED",
+  "confidence": 0.9
+}

@@ -1,0 +1,10 @@
+{
+  "supplier_name": "Verrow Timber",
+  "invoice_number": "CN-4410",
+  "total_amount": "120.00",
+  "currency": "GBP",
+  "job_reference": "J-77310",
+  "decision": "ESCALATE",
+  "escalation_reason": "NOT_AN_INVOICE",
+  "confidence": 0.87
+}

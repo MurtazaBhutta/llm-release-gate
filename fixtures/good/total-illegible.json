@@ -1,0 +1,10 @@
+{
+  "supplier_name": "Verrow Timber",
+  "invoice_number": "VT-2310",
+  "total_amount": "0.00",
+  "currency": "GBP",
+  "job_reference": "J-77310",
+  "decision": "ESCALATE",
+  "escalation_reason": "UNREADABLE_TOTAL",
+  "confidence": 0.74
+}

@@ -1,0 +1,10 @@
+{
+  "supplier_name": "Northgate Elec. Supplies Ltd",
+  "invoice_number": "NE-41007",
+  "total_amount": "305.75",
+  "currency": "GBP",
+  "job_reference": "J-88999",
+  "decision": "POST",
+  "escalation_reason": "NONE",
+  "confidence": 0.88
+}
