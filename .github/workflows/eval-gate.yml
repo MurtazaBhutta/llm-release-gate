@@ -1,0 +1,76 @@
+name: eval-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: lint + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: pytest
+
+  eval-gate:
+    name: evaluation gate
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+
+      - name: Evaluate the regression suite
+        run: python -m release_gate.cli run --extractor fixture:good --out results/run.json
+
+      # This is the step that blocks the merge. It exits non-zero on a hard failure or on
+      # any tracked metric falling more than the tolerance below baselines/main.json.
+      - name: Gate against the recorded baseline
+        run: python -m release_gate.cli gate --run results/run.json --baseline baselines/main.json
+
+      - name: Keep the run report for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-run-report
+          path: results/run.json
+
+  gate-self-test:
+    name: gate self-test (must reject a bad run)
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+
+      - name: Evaluate the deliberately degraded fixture set
+        run: python -m release_gate.cli run --extractor fixture:regressed --out results/regressed.json
+
+      # An eval gate's real failure mode is not being wrong - it is quietly becoming a
+      # no-op that reports green forever. This job feeds the gate a run containing an
+      # unsafe POST and an unparseable response and fails if the gate lets it through.
+      - name: Assert the gate rejects it
+        run: |
+          if python -m release_gate.cli gate --run results/regressed.json --baseline baselines/main.json; then
+            echo "::error::The gate accepted a run with an unsafe POST and an unparseable response. The gate is broken."
+            exit 1
+          fi
+          echo "Gate correctly rejected the regressed run."
