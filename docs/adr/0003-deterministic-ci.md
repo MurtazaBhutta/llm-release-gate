@@ -16,11 +16,12 @@ The natural design calls the model in CI. Three problems, in increasing order of
 Point 3 conflicts directly with ADR 0001, which requires the gate to be a required check.
 
 ## Decision
-Two extraction paths behind one `Extractor` interface:
+Recorded and live extraction paths behind one `Extractor` interface:
 
 - `fixture:<variant>` replays recorded model outputs from `fixtures/`. Deterministic, free,
   no credentials. This is what CI runs.
 - `claude[:model-id]` calls the live model. Run locally or on demand via `make eval-live`.
+- `azure_openai[:deployment]` does the same against an Azure OpenAI deployment (`make eval-live-azure`).
 
 CI therefore holds the *gate logic* - scoring tiers, thresholds, baseline comparison, the
 markdown summary - under continuous test on every push. Live-model behaviour is measured

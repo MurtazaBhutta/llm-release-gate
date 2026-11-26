@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument(
         "--extractor",
         default="fixture:good",
-        help="fixture:good | fixture:regressed | claude[:model-id]",
+        help="fixture:good | fixture:regressed | claude[:model-id] | azure_openai[:deployment]",
     )
     run.add_argument("--dataset", default=None)
     run.add_argument("--prompt", default=None)

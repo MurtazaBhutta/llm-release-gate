@@ -120,7 +120,7 @@ fixtures/regressed/            recorded degraded responses -> CI self-test
 baselines/main.json            the metrics a change is measured against
 src/release_gate/
   schema.py                    output contract (wire format only)
-  extractors.py                Extractor interface: recorded fixtures | live Claude
+  extractors.py                Extractor interface: recorded fixtures | Claude | Azure OpenAI
   scoring.py                   the four assertion tiers
   gate.py                      hard failures / regressions / warnings
   cli.py                       run | gate | update-baseline
@@ -129,15 +129,31 @@ docs/adr/                      why it is built this way
 
 ## Against the live model
 
+The same suite runs against Claude or an Azure OpenAI deployment. Both go through one
+`Extractor` interface and map every failure (refusal, truncation, schema violation, API error)
+onto the same outcome, so the scoring and the gate do not care which provider produced a run.
+
 ```bash
+# Claude
 export ANTHROPIC_API_KEY=...
 make eval-live      # one structured-output call per case, then gate as usual
+
+# Azure OpenAI (the v1 API, so no api-version to pin)
+export AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
+export AZURE_OPENAI_API_KEY=...
+export AZURE_OPENAI_DEPLOYMENT=<deployment-name>
+make eval-live-azure
 ```
 
-Uses `client.messages.parse()` with a Pydantic `output_format`, so the response is schema-
-validated at the SDK boundary. Model defaults to `claude-opus-5`, override with
-`RELEASE_GATE_MODEL`. `stop_reason` is checked before content is read — a refusal returns
-HTTP 200 with no usable output, and reading `.content` first would mask it as a parse error.
+- **Claude** uses `client.messages.parse()` with a Pydantic `output_format`, so the response is
+  schema-validated at the SDK boundary. Model defaults to `claude-opus-5`, override with
+  `RELEASE_GATE_MODEL`. `stop_reason` is checked before content is read: a refusal returns
+  HTTP 200 with no usable output, and reading `.content` first would mask it as a parse error.
+- **Azure OpenAI** uses `client.chat.completions.parse()` with the same Pydantic model as
+  `response_format`. The model name is your deployment name, which can also be given inline:
+  `--extractor azure_openai:<deployment>`. A `refusal` on the message and Azure's content
+  filter both score as a refusal. Structured outputs need a deployment that supports them:
+  gpt-4o 2024-08-06 or later, gpt-4.1, or the gpt-5 family.
 
 ## Honest limits
 

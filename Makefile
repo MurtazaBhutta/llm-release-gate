@@ -1,4 +1,4 @@
-.PHONY: install test lint eval eval-regressed eval-live gate baseline demo clean
+.PHONY: install test lint eval eval-regressed eval-live eval-live-azure gate baseline demo clean
 
 install:
 	pip install -e ".[dev]"
@@ -20,6 +20,11 @@ eval-regressed:
 # Against the live model. Costs money and needs ANTHROPIC_API_KEY.
 eval-live:
 	python -m release_gate.cli run --extractor claude --out results/run.json
+
+# Against an Azure OpenAI deployment. Costs money and needs AZURE_OPENAI_ENDPOINT,
+# AZURE_OPENAI_API_KEY and AZURE_OPENAI_DEPLOYMENT.
+eval-live-azure:
+	python -m release_gate.cli run --extractor azure_openai --out results/run.json
 
 gate:
 	python -m release_gate.cli gate --run results/run.json --baseline baselines/main.json
